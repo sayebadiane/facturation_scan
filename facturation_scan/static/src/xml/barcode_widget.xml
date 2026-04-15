@@ -3,20 +3,21 @@
 
     <!--
         Template OWL du widget de scan code-barres.
-        Utilisé par BarcodeScannerField (barcode_widget.js).
+        Trois modes :
+          1. Lecteur USB/Bluetooth → service barcode Odoo (global)
+          2. Webcam               → BarcodeDetector API (Chrome/Edge)
+          3. Saisie manuelle      → input + Entrée
     -->
     <t t-name="facturation_scan.BarcodeScannerField">
         <div class="o_barcode_scanner_field">
 
-            <!-- Groupe input + bouton -->
+            <!-- ── Groupe input + boutons ─────────────────────────── -->
             <div class="input-group">
 
-                <!-- Icône barcode -->
                 <span class="input-group-text bg-primary text-white border-primary">
                     <i class="fa fa-barcode fa-lg"/>
                 </span>
 
-                <!-- Champ de saisie du code-barres -->
                 <input
                     t-ref="barcodeInput"
                     type="text"
@@ -30,30 +31,89 @@
                     spellcheck="false"
                 />
 
-                <!-- Spinner pendant la recherche -->
                 <span t-if="state.scanning" class="input-group-text">
                     <i class="fa fa-spinner fa-spin text-primary"/>
                 </span>
 
-                <!-- Bouton Ajouter (clic ou mobile) -->
+                <!-- Bouton Ajouter -->
                 <button
                     t-if="!state.scanning"
                     type="button"
                     class="btn btn-primary"
                     t-on-click="onClickAdd"
                     t-att-disabled="!state.value or props.readonly">
-                    <i class="fa fa-plus me-1"/>
-                    Ajouter
+                    <i class="fa fa-plus me-1"/>Ajouter
+                </button>
+
+                <!-- Bouton Caméra -->
+                <button
+                    t-if="!state.scanning"
+                    type="button"
+                    class="btn btn-secondary o_camera_btn"
+                    title="Scanner avec la webcam (Chrome / Edge requis)"
+                    t-on-click="openCamera"
+                    t-att-disabled="state.cameraActive or state.cameraLoading or props.readonly">
+                    <t t-if="state.cameraLoading">
+                        <i class="fa fa-spinner fa-spin me-1"/>Démarrage…
+                    </t>
+                    <t t-else="">
+                        <i class="fa fa-camera me-1"/>Caméra
+                    </t>
                 </button>
             </div>
 
             <!-- Message d'aide -->
             <div class="o_barcode_help text-muted small mt-1">
                 <i class="fa fa-info-circle me-1"/>
-                Branchez votre lecteur USB et scannez directement, ou saisissez le code manuellement.
+                Lecteur USB : scan direct. Ou cliquez <strong>Caméra</strong> pour utiliser la webcam. Ou saisissez manuellement.
             </div>
 
         </div>
+
+        <!-- ── Overlay caméra ──────────────────────────────────────── -->
+        <div t-if="state.cameraActive" class="o_camera_overlay" t-on-click="onOverlayClick">
+            <div class="o_camera_container" t-on-click.stop="">
+
+                <div class="o_camera_header">
+                    <i class="fa fa-camera me-2 text-success"/>
+                    <span>Placez le code-barres dans le cadre vert</span>
+                    <button type="button"
+                            class="btn-close btn-close-white ms-auto"
+                            t-on-click="closeCamera"/>
+                </div>
+
+                <!-- Flux vidéo -->
+                <div class="o_camera_viewport">
+                    <video t-ref="videoRef"
+                           class="o_camera_video"
+                           autoplay="autoplay"
+                           playsinline="playsinline"
+                           muted="muted"/>
+
+                    <!-- Cadre de visée animé -->
+                    <div class="o_camera_frame">
+                        <div class="o_camera_corner tl"/>
+                        <div class="o_camera_corner tr"/>
+                        <div class="o_camera_corner bl"/>
+                        <div class="o_camera_corner br"/>
+                        <div class="o_camera_scanline"/>
+                    </div>
+
+                    <!-- Badge produit détecté -->
+                    <div t-if="state.lastDetected" class="o_camera_detected">
+                        <i class="fa fa-check-circle me-1"/>
+                        <t t-esc="state.lastDetected"/>
+                    </div>
+                </div>
+
+                <div class="o_camera_controls">
+                    <button type="button" class="btn btn-danger" t-on-click="closeCamera">
+                        <i class="fa fa-times me-1"/>Fermer la caméra
+                    </button>
+                </div>
+            </div>
+        </div>
+
     </t>
 
 </templates>

@@ -15,7 +15,7 @@
         - Interface responsive (desktop & mobile)
     """,
     'author': 'Groupe Axis',
-    'depends': ['base', 'account', 'product', 'sale', 'sale_management'],
+    'depends': ['base', 'account', 'product', 'sale', 'sale_management', 'barcodes'],
     'data': [
         'security/ir.model.access.csv',
         'data/sequence_data.xml',
