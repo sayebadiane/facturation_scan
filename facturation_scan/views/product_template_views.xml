@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         HÉRITAGE — product.template (fiche produit)
+         Ajout d'un onglet "Scan" dans le formulaire produit standard.
+    ══════════════════════════════════════════════════════════════════════════ -->
+    <record id="view_product_template_form_scan" model="ir.ui.view">
+        <field name="name">product.template.form.scan</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_form_view"/>
+        <field name="arch" type="xml">
+
+            <!-- Onglet "Scan" inséré après l'onglet "Informations générales" -->
+            <xpath expr="//page[@name='general_information']" position="after">
+                <page name="scan_config" string="Scan / Facturation">
+                    <group>
+                        <group string="Paramètres de scan">
+                            <field name="x_scan_enabled"/>
+                            <field name="x_scan_price_override"
+                                   invisible="not x_scan_enabled"/>
+                            <field name="x_effective_scan_price"
+                                   invisible="not x_scan_enabled"
+                                   string="Prix appliqué au scan"/>
+                        </group>
+                        <group string="Message">
+                            <field name="x_scan_note"
+                                   invisible="not x_scan_enabled"
+                                   placeholder="Ex : Fragile, Promo -10%, Fin de série…"/>
+                        </group>
+                    </group>
+                    <div invisible="not x_scan_enabled"
+                         class="alert alert-info" role="alert">
+                        <i class="fa fa-info-circle me-1"/>
+                        Le code-barres utilisé lors du scan est le champ
+                        <strong>Code-barres</strong> situé dans l'onglet
+                        <em>Informations générales</em>.
+                    </div>
+                    <div invisible="x_scan_enabled"
+                         class="alert alert-warning" role="alert">
+                        <i class="fa fa-ban me-1"/>
+                        Ce produit est <strong>désactivé pour le scan</strong>.
+                        Il sera refusé si son code-barres est scanné dans une session.
+                    </div>
+                </page>
+            </xpath>
+
+        </field>
+    </record>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         HÉRITAGE — product.template (vue liste)
+         Ajout de la colonne "Scannable" dans la liste des produits.
+    ══════════════════════════════════════════════════════════════════════════ -->
+    <record id="view_product_template_list_scan" model="ir.ui.view">
+        <field name="name">product.template.list.scan</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_tree_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='list_price']" position="after">
+                <field name="x_scan_enabled"
+                       optional="show"
+                       string="Scannable"
+                       widget="boolean_toggle"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <!-- Séquence de numérotation personnalisée pour les factures Axis -->
+    <record id="sequence_axis_facture_client" model="ir.sequence">
+        <field name="name">Facture Client Axis</field>
+        <field name="code">axis.facture.client</field>
+        <field name="prefix">FACT/%(year)s/%(month)s/</field>
+        <field name="padding">4</field>
+        <field name="number_increment">1</field>
+        <field name="use_date_range">True</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+    <record id="sequence_axis_avoir_client" model="ir.sequence">
+        <field name="name">Avoir Client Axis</field>
+        <field name="code">axis.avoir.client</field>
+        <field name="prefix">AV/%(year)s/%(month)s/</field>
+        <field name="padding">4</field>
+        <field name="number_increment">1</field>
+        <field name="use_date_range">True</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+</odoo>

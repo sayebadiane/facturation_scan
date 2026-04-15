@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         MENUS — Facturation Axis
+    ══════════════════════════════════════════════════════════════════════════ -->
+
+    <!-- Sous-menu dans Comptabilité > Clients -->
+    <menuitem
+        id="menu_axis_facturation_root"
+        name="Axis Facturation"
+        parent="account.menu_finance"
+        sequence="5"/>
+
+    <menuitem
+        id="menu_axis_factures_client"
+        name="Factures clients"
+        parent="menu_axis_facturation_root"
+        action="action_axis_factures_client"
+        sequence="10"/>
+
+    <menuitem
+        id="menu_axis_avoirs_client"
+        name="Avoirs clients"
+        parent="menu_axis_facturation_root"
+        action="action_axis_avoirs_client"
+        sequence="20"/>
+
+    <menuitem
+        id="menu_axis_factures_relance"
+        name="Factures à relancer"
+        parent="menu_axis_facturation_root"
+        action="action_axis_factures_relance"
+        sequence="30"/>
+
+</odoo>

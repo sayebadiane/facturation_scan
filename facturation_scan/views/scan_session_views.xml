@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         VUE FORMULAIRE — Session de scan
+    ══════════════════════════════════════════════════════════════════════════ -->
+    <record id="view_scan_session_form" model="ir.ui.view">
+        <field name="name">scan.session.form</field>
+        <field name="model">scan.session</field>
+        <field name="arch" type="xml">
+            <form string="Session de scan">
+
+                <!-- Barre d'actions -->
+                <header>
+                    <button name="action_create_invoice"
+                            type="object"
+                            string="Valider et générer facture"
+                            class="btn-primary"
+                            invisible="state != 'draft'"/>
+
+                    <button name="action_view_invoice"
+                            type="object"
+                            string="Voir la facture"
+                            invisible="not invoice_id"/>
+
+                    <button name="action_print_invoice"
+                            type="object"
+                            string="Imprimer la facture"
+                            icon="fa-print"
+                            invisible="not invoice_id"/>
+
+                    <button name="action_reset_draft"
+                            type="object"
+                            string="Remettre en brouillon"
+                            invisible="state != 'invoiced' or invoice_id != False"/>
+
+                    <field name="state"
+                           widget="statusbar"
+                           statusbar_visible="draft,invoiced"/>
+                </header>
+
+                <sheet>
+                    <!-- Stat button : accès rapide à la facture -->
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_invoice"
+                                type="object"
+                                class="oe_stat_button"
+                                icon="fa-file-text-o"
+                                invisible="not invoice_id">
+                            <div class="o_stat_info">
+                                <span class="o_stat_text">Facture</span>
+                            </div>
+                        </button>
+                    </div>
+
+                    <!-- Titre -->
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Référence session"/>
+                        </h1>
+                    </div>
+
+                    <!-- Informations générales -->
+                    <group>
+                        <group string="Client">
+                            <field name="partner_id"
+                                   readonly="state == 'invoiced'"
+                                   options="{'no_create_edit': True}"/>
+                            <field name="date"
+                                   readonly="state == 'invoiced'"/>
+                        </group>
+                        <group string="Montant">
+                            <field name="currency_id" invisible="1"/>
+                            <field name="amount_total"
+                                   widget="monetary"
+                                   options="{'currency_field': 'currency_id'}"/>
+                        </group>
+                    </group>
+
+                    <!-- ── Zone de scan ───────────────────────────────────── -->
+                    <div class="o_scan_zone" invisible="state == 'invoiced'">
+                        <div class="o_scan_title">
+                            <i class="fa fa-barcode me-2"/>
+                            <strong>Scanner un produit</strong>
+                            <span class="text-muted ms-2 small">
+                                — Utilisez votre lecteur ou saisissez le code puis appuyez sur Entrée
+                            </span>
+                        </div>
+                        <field name="barcode_input"
+                               widget="barcode_scanner"
+                               nolabel="1"/>
+                    </div>
+
+                    <!-- ── Panier (lignes) ─────────────────────────────────── -->
+                    <field name="line_ids"
+                           string="Panier"
+                           readonly="state == 'invoiced'">
+                        <list editable="bottom"
+                              decoration-muted="quantity == 0">
+                            <field name="sequence" widget="handle"/>
+                            <field name="product_id"
+                                   options="{'no_create_edit': True}"/>
+                            <field name="barcode" optional="show"/>
+                            <field name="quantity"/>
+                            <field name="price_unit"/>
+                            <field name="subtotal"
+                                   sum="Total TTC"
+                                   readonly="1"/>
+                        </list>
+                    </field>
+
+                    <!-- Notes internes -->
+                    <group>
+                        <field name="notes"
+                               placeholder="Notes internes (non imprimées sur la facture)…"
+                               nolabel="1"/>
+                    </group>
+
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         VUE LISTE — Sessions de scan
+    ══════════════════════════════════════════════════════════════════════════ -->
+    <record id="view_scan_session_list" model="ir.ui.view">
+        <field name="name">scan.session.list</field>
+        <field name="model">scan.session</field>
+        <field name="arch" type="xml">
+            <list string="Sessions de scan"
+                  decoration-muted="state == 'invoiced'">
+                <field name="name"/>
+                <field name="date"/>
+                <field name="partner_id"/>
+                <field name="amount_total" sum="Total"/>
+                <field name="invoice_id" optional="show"/>
+                <field name="state"
+                       widget="badge"
+                       decoration-success="state == 'invoiced'"
+                       decoration-warning="state == 'draft'"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         VUE RECHERCHE — Sessions
+    ══════════════════════════════════════════════════════════════════════════ -->
+    <record id="view_scan_session_search" model="ir.ui.view">
+        <field name="name">scan.session.search</field>
+        <field name="model">scan.session</field>
+        <field name="arch" type="xml">
+            <search string="Rechercher une session">
+                <field name="name" string="Référence"/>
+                <field name="partner_id" string="Client"/>
+                <separator/>
+                <filter name="draft"
+                        string="Brouillon"
+                        domain="[('state', '=', 'draft')]"/>
+                <filter name="invoiced"
+                        string="Facturé"
+                        domain="[('state', '=', 'invoiced')]"/>
+                <separator/>
+                <filter name="today"
+                        string="Aujourd'hui"
+                        domain="[('date', '=', context_today().strftime('%Y-%m-%d'))]"/>
+                <group expand="0" string="Regrouper par">
+                    <filter name="group_partner"
+                            string="Client"
+                            context="{'group_by': 'partner_id'}"/>
+                    <filter name="group_state"
+                            string="État"
+                            context="{'group_by': 'state'}"/>
+                    <filter name="group_date"
+                            string="Date"
+                            context="{'group_by': 'date'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         ACTION — Ouverture de la liste des sessions
+    ══════════════════════════════════════════════════════════════════════════ -->
+    <record id="action_scan_session" model="ir.actions.act_window">
+        <field name="name">Sessions de scan</field>
+        <field name="res_model">scan.session</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_scan_session_search"/>
+        <field name="context">{'search_default_draft': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Créez votre première session de scan
+            </p>
+            <p>
+                Scannez des produits pour constituer un panier,
+                puis générez une facture client en un clic.
+            </p>
+        </field>
+    </record>
+
+    <!-- ACTION — Nouvelle session directement en formulaire -->
+    <record id="action_scan_new_session" model="ir.actions.act_window">
+        <field name="name">Nouvelle session</field>
+        <field name="res_model">scan.session</field>
+        <field name="view_mode">form</field>
+        <field name="target">current</field>
+        <field name="context">{'default_state': 'draft'}</field>
+    </record>
+
+</odoo>

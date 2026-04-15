@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         MENUS — Scan Facturation
+         Rattaché à Comptabilité > Facturation
+    ══════════════════════════════════════════════════════════════════════════ -->
+
+    <!-- Entrée principale sous le menu Comptabilité -->
+    <menuitem
+        id="menu_facturation_scan_root"
+        name="Scan Produits"
+        parent="account.menu_finance"
+        sequence="98"/>
+
+    <!-- Sous-menu : nouvelle session de scan -->
+    <menuitem
+        id="menu_scan_new_session"
+        name="Nouvelle session"
+        parent="menu_facturation_scan_root"
+        action="action_scan_new_session"
+        sequence="5"/>
+
+    <!-- Sous-menu : liste de toutes les sessions -->
+    <menuitem
+        id="menu_scan_sessions"
+        name="Toutes les sessions"
+        parent="menu_facturation_scan_root"
+        action="action_scan_session"
+        sequence="10"/>
+
+</odoo>

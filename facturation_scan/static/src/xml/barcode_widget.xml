@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <!--
+        Template OWL du widget de scan code-barres.
+        Utilisé par BarcodeScannerField (barcode_widget.js).
+    -->
+    <t t-name="facturation_scan.BarcodeScannerField">
+        <div class="o_barcode_scanner_field">
+
+            <!-- Groupe input + bouton -->
+            <div class="input-group">
+
+                <!-- Icône barcode -->
+                <span class="input-group-text bg-primary text-white border-primary">
+                    <i class="fa fa-barcode fa-lg"/>
+                </span>
+
+                <!-- Champ de saisie du code-barres -->
+                <input
+                    t-ref="barcodeInput"
+                    type="text"
+                    class="form-control form-control-lg o_barcode_input"
+                    placeholder="Code-barres → Entrée pour ajouter"
+                    t-model="state.value"
+                    t-on-keydown="onKeydown"
+                    t-att-disabled="state.scanning or props.readonly"
+                    autocomplete="off"
+                    autocorrect="off"
+                    spellcheck="false"
+                />
+
+                <!-- Spinner pendant la recherche -->
+                <span t-if="state.scanning" class="input-group-text">
+                    <i class="fa fa-spinner fa-spin text-primary"/>
+                </span>
+
+                <!-- Bouton Ajouter (clic ou mobile) -->
+                <button
+                    t-if="!state.scanning"
+                    type="button"
+                    class="btn btn-primary"
+                    t-on-click="onClickAdd"
+                    t-att-disabled="!state.value or props.readonly">
+                    <i class="fa fa-plus me-1"/>
+                    Ajouter
+                </button>
+            </div>
+
+            <!-- Message d'aide -->
+            <div class="o_barcode_help text-muted small mt-1">
+                <i class="fa fa-info-circle me-1"/>
+                Branchez votre lecteur USB et scannez directement, ou saisissez le code manuellement.
+            </div>
+
+        </div>
+    </t>
+
+</templates>

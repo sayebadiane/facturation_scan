@@ -1,0 +1,107 @@
+/* ============================================================
+   Facturation Scan — styles interface
+   Compatible Bootstrap 5 (Odoo 17/18)
+   ============================================================ */
+
+/* ── Zone de scan ─────────────────────────────────────────── */
+
+.o_scan_zone {
+    margin: 16px 0 20px 0;
+    padding: 16px 20px;
+    background: #f0f4ff;
+    border: 2px dashed #b3c4f5;
+    border-radius: 10px;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.o_scan_zone:focus-within {
+    border-color: #0d6efd;
+    background: #e8f0fe;
+}
+
+.o_scan_title {
+    margin-bottom: 12px;
+    font-size: 1rem;
+    color: #344054;
+}
+
+/* ── Widget barcode ───────────────────────────────────────── */
+
+.o_barcode_scanner_field {
+    max-width: 640px;
+}
+
+.o_barcode_input {
+    font-size: 1.1rem;
+    height: 48px;
+    letter-spacing: 0.04em;
+}
+
+.o_barcode_input:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+.o_barcode_input:disabled {
+    background-color: #e9ecef;
+    opacity: 0.7;
+}
+
+.o_barcode_help {
+    font-size: 0.82rem;
+    color: #6c757d;
+}
+
+/* ── Tableau panier ───────────────────────────────────────── */
+
+/* Accentuation de la colonne sous-total */
+.o_list_view .o_data_row td[name="subtotal"] {
+    font-weight: 600;
+    color: #1a1a2e;
+}
+
+/* Ligne épinglée total en bas du tableau */
+.o_list_view tfoot td {
+    font-weight: 700;
+    font-size: 1rem;
+    background: #f8f9fa;
+}
+
+/* ── Responsive (mobile / tablette) ─────────────────────────── */
+
+@media (max-width: 768px) {
+    .o_scan_zone {
+        padding: 12px;
+    }
+
+    .o_barcode_scanner_field {
+        max-width: 100%;
+    }
+
+    .o_barcode_input {
+        font-size: 1rem;
+        height: 44px;
+    }
+
+    /* Empiler les colonnes moins importantes sur petit écran */
+    .o_list_view .o_optional_columns_dropdown {
+        display: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .o_scan_zone {
+        margin: 8px 0;
+    }
+
+    /* Bouton Ajouter prend toute la largeur sur très petit écran */
+    .o_barcode_scanner_field .input-group {
+        flex-wrap: wrap;
+    }
+
+    .o_barcode_scanner_field .input-group .btn {
+        flex: 1 1 100%;
+        margin-top: 6px;
+        border-radius: 6px !important;
+    }
+}
