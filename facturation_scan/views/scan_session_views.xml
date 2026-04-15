@@ -78,7 +78,13 @@
                     </group>
 
                     <!-- ── Zone de scan ───────────────────────────────────── -->
-                    <div class="o_scan_zone" invisible="state == 'invoiced'">
+                    <div class="alert alert-info mb-2"
+                         invisible="partner_id or state == 'invoiced'">
+                        <i class="fa fa-info-circle me-1"/>
+                        Sélectionnez un client pour activer la saisie du code-barres.
+                    </div>
+
+                    <div class="o_scan_zone" invisible="state == 'invoiced' or not partner_id">
                         <div class="o_scan_title">
                             <i class="fa fa-barcode me-2"/>
                             <strong>Scanner un produit</strong>
@@ -160,11 +166,7 @@
                 <filter name="invoiced"
                         string="Facturé"
                         domain="[('state', '=', 'invoiced')]"/>
-                <separator/>
-                <filter name="today"
-                        string="Aujourd'hui"
-                        domain="[('date', '=', context_today().strftime('%Y-%m-%d'))]"/>
-                <group expand="0" string="Regrouper par">
+                <group>
                     <filter name="group_partner"
                             string="Client"
                             context="{'group_by': 'partner_id'}"/>

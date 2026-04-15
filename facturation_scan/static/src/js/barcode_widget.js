@@ -59,9 +59,10 @@ export class BarcodeScannerField extends Component {
 
     /**
      * Retourne l'ID de la session courante (ou null si nouvelle fiche).
+     * On utilise resId (plus fiable que data.id en Odoo 17+).
      */
     get _sessionId() {
-        return this.props.record.data.id || null;
+        return this.props.record.resId || null;
     }
 
     // ── Traitement du scan ─────────────────────────────────────────────────
@@ -80,7 +81,7 @@ export class BarcodeScannerField extends Component {
             // Tentative de sauvegarde automatique
             try {
                 await this.props.record.save();
-                sessionId = this.props.record.data.id;
+                sessionId = this.props.record.resId;
             } catch {
                 /* sauvegarde impossible (champs obligatoires manquants) */
             }
