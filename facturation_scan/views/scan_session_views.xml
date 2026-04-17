@@ -40,7 +40,7 @@
                 </header>
 
                 <sheet>
-                    <!-- Stat button : accès rapide à la facture -->
+                    <!-- Stat buttons : accès rapide à la facture et au bon de livraison -->
                     <div class="oe_button_box" name="button_box">
                         <button name="action_view_invoice"
                                 type="object"
@@ -49,6 +49,15 @@
                                 invisible="not invoice_id">
                             <div class="o_stat_info">
                                 <span class="o_stat_text">Facture</span>
+                            </div>
+                        </button>
+                        <button name="action_view_picking"
+                                type="object"
+                                class="oe_stat_button"
+                                icon="fa-truck"
+                                invisible="not stock_picking_id">
+                            <div class="o_stat_info">
+                                <span class="o_stat_text">Livraison</span>
                             </div>
                         </button>
                     </div>

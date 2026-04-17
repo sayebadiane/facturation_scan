@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import base64
 from odoo import api, fields, models, _
 from odoo.exceptions import UserError
 
@@ -43,6 +44,12 @@ class ScanSession(models.Model):
     invoice_id = fields.Many2one(
         comodel_name='account.move',
         string='Facture générée',
+        readonly=True,
+        copy=False,
+    )
+    stock_picking_id = fields.Many2one(
+        comodel_name='stock.picking',
+        string='Bon de livraison',
         readonly=True,
         copy=False,
     )
@@ -168,9 +175,81 @@ class ScanSession(models.Model):
             'note': tmpl.x_scan_note or '',   # affiché en notification si renseigné
         }
 
+    def _create_delivery_picking(self):
+        """
+        Crée et valide un bon de livraison (sortie de stock) pour les produits
+        stockables/consommables de la session. Les services sont ignorés.
+        Retourne le stock.picking créé, ou False si aucune ligne à livrer.
+        """
+        self.ensure_one()
+
+        # Filtrer uniquement les produits qui gérent le stock (storable) ou consommable
+        lines_to_deliver = self.line_ids.filtered(
+            lambda l: l.product_id.type in ('product', 'consu')
+        )
+        if not lines_to_deliver:
+            return False
+
+        # Vérifier la disponibilité du stock avant de créer le bon de livraison
+        insufficient = []
+        for line in lines_to_deliver:
+            available = line.product_id.qty_available
+            if line.quantity > available:
+                insufficient.append(
+                    "• %s : commandé %.2f, disponible %.2f"
+                    % (line.product_id.display_name, line.quantity, available)
+                )
+        if insufficient:
+            raise UserError(_(
+                "Stock insuffisant pour les produits suivants :\n%s\n\n"
+                "Ajustez les quantités ou approvisionnez votre stock avant de facturer."
+            ) % '\n'.join(insufficient))
+
+        # Trouver le type d'opération "Livraison clients" (sortant) de la société courante
+        picking_type = self.env['stock.picking.type'].search([
+            ('code', '=', 'outgoing'),
+            ('warehouse_id.company_id', '=', self.env.company.id),
+        ], limit=1)
+
+        if not picking_type:
+            raise UserError(_(
+                "Aucun type d'opération de livraison trouvé. "
+                "Vérifiez la configuration de votre entrepôt."
+            ))
+
+        picking = self.env['stock.picking'].create({
+            'picking_type_id': picking_type.id,
+            'partner_id': self.partner_id.id,
+            'origin': self.name,
+            'location_id': picking_type.default_location_src_id.id,
+            'location_dest_id': picking_type.default_location_dest_id.id,
+            'move_ids': [
+                (0, 0, {
+                    'product_id': line.product_id.id,
+                    'product_uom': line.product_id.uom_id.id,
+                    'product_uom_qty': line.quantity,
+                    'location_id': picking_type.default_location_src_id.id,
+                    'location_dest_id': picking_type.default_location_dest_id.id,
+                })
+                for line in lines_to_deliver
+            ],
+        })
+
+        picking.action_confirm()
+        picking.action_assign()
+
+        # Définir les quantités faites et valider sans créer de reliquat
+        for move in picking.move_ids:
+            move.quantity = move.product_uom_qty
+
+        picking.with_context(skip_backorder=True).button_validate()
+
+        return picking
+
     def action_create_invoice(self):
         """
-        Crée une facture client (out_invoice) depuis les lignes du panier.
+        Crée une facture client (out_invoice) depuis les lignes du panier
+        et génère automatiquement le bon de livraison.
         Redirige vers la facture créée.
         """
         self.ensure_one()
@@ -196,10 +275,54 @@ class ScanSession(models.Model):
             ],
         })
 
+        picking = self._create_delivery_picking()
+
         self.write({
             'invoice_id': invoice.id,
+            'stock_picking_id': picking.id if picking else False,
             'state': 'invoiced',
         })
+
+        # Envoi automatique par email si le client a une adresse email
+        email_sent = False
+        if self.partner_id.email:
+            template = self.env.ref(
+                'account.email_template_edi_invoice',
+                raise_if_not_found=False,
+            )
+            if template:
+                # Générer le PDF de la facture et le joindre à l'email
+                pdf_content, _mime = self.env['ir.actions.report']._render_qweb_pdf(
+                    'account.report_invoice',
+                    res_ids=[invoice.id],
+                )
+                attachment = self.env['ir.attachment'].create({
+                    'name': 'Facture_%s.pdf' % (invoice.name or 'brouillon'),
+                    'type': 'binary',
+                    'datas': base64.b64encode(pdf_content).decode(),
+                    'res_model': 'account.move',
+                    'res_id': invoice.id,
+                    'mimetype': 'application/pdf',
+                })
+                template.send_mail(
+                    invoice.id,
+                    force_send=True,
+                    email_values={'attachment_ids': [(4, attachment.id)]},
+                )
+                email_sent = True
+
+        # Notification résumé
+        if email_sent:
+            self.env['bus.bus']._sendone(
+                self.env.user.partner_id,
+                'notification',
+                {
+                    'type': 'success',
+                    'title': _('Facture envoyée'),
+                    'message': _('La facture a été confirmée et envoyée à %s') % self.partner_id.email,
+                    'sticky': False,
+                },
+            )
 
         return {
             'type': 'ir.actions.act_window',
@@ -234,6 +357,20 @@ class ScanSession(models.Model):
             ._get_report_from_name('account.report_invoice')
             .report_action(self.invoice_id)
         )
+
+    def action_view_picking(self):
+        """Ouvre le bon de livraison généré."""
+        self.ensure_one()
+        if not self.stock_picking_id:
+            raise UserError(_("Aucun bon de livraison n'a encore été généré."))
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Bon de livraison'),
+            'res_model': 'stock.picking',
+            'res_id': self.stock_picking_id.id,
+            'view_mode': 'form',
+            'target': 'current',
+        }
 
     def action_reset_draft(self):
         """Remet en brouillon si la facture a été supprimée."""
