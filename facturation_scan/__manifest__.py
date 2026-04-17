@@ -25,6 +25,7 @@
     ],
     'assets': {
         'web.assets_backend': [
+            'facturation_scan/static/lib/zxing.min.js',
             'facturation_scan/static/src/xml/barcode_widget.xml',
             'facturation_scan/static/src/js/barcode_widget.js',
             'facturation_scan/static/src/css/scan_style.css',

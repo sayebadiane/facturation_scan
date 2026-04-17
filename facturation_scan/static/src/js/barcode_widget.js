@@ -52,6 +52,7 @@ export class BarcodeScannerField extends Component {
         // Attributs caméra (non réactifs, gestion manuelle)
         this._cameraStream    = null;
         this._barcodeDetector = null;
+        this._zxingControls   = null;
         this._detecting       = false;
         this._lastScanAt      = 0;
 
@@ -147,15 +148,29 @@ export class BarcodeScannerField extends Component {
         }
     }
 
+    // ── Validation lecture ─────────────────────────────────────────────────
+
+    /**
+     * Rejette les lectures parasites : caractères non-ASCII, code trop court.
+     * Une mauvaise lecture caméra produit souvent des caractères accentués
+     * ou des symboles (ex: "Bà&FATQOKQ" au lieu de "B01FQTAOKA").
+     */
+    _isValidRead(barcode) {
+        if (!barcode || barcode.trim().length < 3) return false;
+        // Accepter uniquement les caractères ASCII imprimables (codes 32-126)
+        return /^[\x20-\x7E]+$/.test(barcode.trim());
+    }
+
     // ── Caméra — ouverture ─────────────────────────────────────────────────
 
     async openCamera() {
-        // Vérification support navigateur
-        if (!("BarcodeDetector" in window)) {
+        const hasNative = "BarcodeDetector" in window;
+        const hasZXing  = typeof window.ZXing !== "undefined";
+
+        if (!hasNative && !hasZXing) {
             this.notification.add(
-                "La détection par caméra nécessite Chrome 83+ ou Edge 83+. "
-                + "Firefox ne supporte pas encore cette API.",
-                { type: "warning", title: "Navigateur non compatible" }
+                "Aucune API de scan disponible. Rechargez la page en mode debug=assets.",
+                { type: "danger", title: "Scan caméra indisponible" }
             );
             return;
         }
@@ -163,44 +178,71 @@ export class BarcodeScannerField extends Component {
         this.state.cameraLoading = true;
 
         try {
-            // Demande d'accès à la caméra
             this._cameraStream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: "environment",   // caméra arrière sur mobile
-                    width:  { ideal: 1280 },
-                    height: { ideal: 720 },
-                },
+                video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
             });
 
             this.state.cameraActive  = true;
             this.state.cameraLoading = false;
 
-            // Attendre le prochain cycle de rendu pour que le <video> soit dans le DOM
+            // Laisser OWL rendre le <video> dans le DOM
             await new Promise(r => setTimeout(r, 50));
-
             const video = this.videoRef.el;
             if (!video) { this._stopCamera(); return; }
-            video.srcObject = this._cameraStream;
-            await video.play();
 
-            // Initialisation BarcodeDetector
-            let formats = BARCODE_FORMATS;
-            try {
-                const supported = await BarcodeDetector.getSupportedFormats();
-                const filtered  = supported.filter(f => BARCODE_FORMATS.includes(f));
-                if (filtered.length) formats = filtered;
-            } catch { /* utiliser la liste par défaut */ }
+            if (hasNative) {
+                // ── Chrome / Edge : BarcodeDetector natif ──
+                video.srcObject = this._cameraStream;
+                await video.play();
 
-            this._barcodeDetector = new BarcodeDetector({ formats });
-            this._detecting       = true;
-            this._lastScanAt      = 0;
-            this._runDetectionLoop();
+                let formats = BARCODE_FORMATS;
+                try {
+                    const supported = await BarcodeDetector.getSupportedFormats();
+                    const filtered  = supported.filter(f => BARCODE_FORMATS.includes(f));
+                    if (filtered.length) formats = filtered;
+                } catch { /* liste par défaut */ }
+
+                this._barcodeDetector = new BarcodeDetector({ formats });
+                this._detecting = true;
+                this._lastScanAt = 0;
+                this._runDetectionLoop();
+
+            } else {
+                // ── Firefox / Safari : fallback ZXing ──
+                const hints = new Map([[window.ZXing.DecodeHintType.TRY_HARDER, true]]);
+                const reader = new window.ZXing.BrowserMultiFormatReader(hints);
+                this._zxingControls = await reader.decodeFromStream(
+                    this._cameraStream,
+                    video,
+                    async (result, _err) => {
+                        if (!result) return;
+                        if (Date.now() - this._lastScanAt < SCAN_COOLDOWN_MS) return;
+                        this._lastScanAt = Date.now();
+
+                        const raw   = result.getText() || "";
+                        const clean = raw.trim();
+
+                        if (this._isValidRead(clean)) {
+                            // Lecture propre → traitement automatique
+                            await this._processBarcode(clean);
+                        } else {
+                            // Lecture douteuse (caractères parasites) →
+                            // on affiche dans le champ pour correction manuelle
+                            const sanitized = clean.replace(/[^\x20-\x7E]/g, "");
+                            this.state.value = sanitized;
+                            this.notification.add(
+                                `Lecture incertaine — vérifiez et appuyez sur Entrée`,
+                                { type: "warning", title: `Détecté : "${sanitized}"` }
+                            );
+                        }
+                    }
+                );
+            }
 
         } catch (err) {
             this.state.cameraActive  = false;
             this.state.cameraLoading = false;
             this._stopCamera();
-
             const msg = err.name === "NotAllowedError"
                 ? "Accès à la caméra refusé. Autorisez-le dans les paramètres du navigateur."
                 : `Impossible d'accéder à la caméra : ${err.message}`;
@@ -230,8 +272,11 @@ export class BarcodeScannerField extends Component {
             try {
                 const results = await this._barcodeDetector.detect(video);
                 if (results.length > 0) {
-                    this._lastScanAt = Date.now();
-                    await this._processBarcode(results[0].rawValue);
+                    const value = results[0].rawValue;
+                    if (this._isValidRead(value)) {
+                        this._lastScanAt = Date.now();
+                        await this._processBarcode(value.trim());
+                    }
                 }
             } catch { /* frame en cours de décodage, ignorer */ }
 
@@ -250,11 +295,15 @@ export class BarcodeScannerField extends Component {
 
     _stopCamera() {
         this._detecting = false;
+        if (this._zxingControls) {
+            try { this._zxingControls.stop(); } catch { /* ignore */ }
+            this._zxingControls = null;
+        }
         if (this._cameraStream) {
             this._cameraStream.getTracks().forEach(t => t.stop());
             this._cameraStream = null;
         }
-        this._barcodeDetector   = null;
+        this._barcodeDetector    = null;
         this.state.cameraActive  = false;
         this.state.cameraLoading = false;
         this.state.lastDetected  = "";
